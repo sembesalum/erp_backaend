@@ -73,7 +73,13 @@ TIME_ZONE = "Africa/Dar_es_Salaam"
 USE_I18N = True
 USE_TZ = True
 
+# Static files (https://docs.djangoproject.com/en/stable/howto/static-files/)
 STATIC_URL = "static/"
+# After `collectstatic`, files land here — point your web server / PythonAnywhere static mapping here.
+STATIC_ROOT = BASE_DIR / "staticfiles"
+# Extra project-wide static dir (not for collectstatic output; use app `static/` or this for shared assets).
+STATICFILES_DIRS = [BASE_DIR / "static"] if (BASE_DIR / "static").exists() else []
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTH_USER_MODEL = "users.User"
