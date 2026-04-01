@@ -1,3 +1,5 @@
+import uuid
+
 from rest_framework import serializers
 
 from fuel.models import FuelStation
@@ -39,7 +41,7 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, min_length=8)
+    password = serializers.CharField(write_only=True)
     assigned_station_id = serializers.PrimaryKeyRelatedField(
         queryset=FuelStation.objects.all(),
         source="assigned_station",
@@ -64,10 +66,32 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs: dict) -> dict:
         role = attrs.get("role")
+        pwd = attrs.get("password") or ""
         region = (attrs.get("region") or "").strip()
         if "region" in attrs:
             attrs["region"] = region
         station = attrs.get("assigned_station")
+
+        if role == User.Role.DRIVER:
+            email = (attrs.get("email") or "").strip()
+            if not email:
+                attrs["email"] = f"driver_{uuid.uuid4().hex[:20]}@drivers.internal"
+            else:
+                attrs["email"] = email.lower()
+            attrs["username"] = attrs["email"]
+            if len(pwd) < 4:
+                raise serializers.ValidationError(
+                    {"password": "Use at least 4 characters for driver accounts."}
+                )
+        else:
+            if not (attrs.get("email") or "").strip():
+                raise serializers.ValidationError({"email": "Email is required."})
+            attrs["email"] = (attrs["email"] or "").strip().lower()
+            attrs.setdefault("username", attrs["email"])
+            if len(pwd) < 8:
+                raise serializers.ValidationError(
+                    {"password": "Use at least 8 characters."}
+                )
 
         if role == User.Role.SIMBA_OIL:
             if station is None:
@@ -86,8 +110,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         password = validated_data.pop("password")
-        email = validated_data["email"]
-        validated_data.setdefault("username", email)
+        validated_data.setdefault("username", validated_data["email"])
         user = User(**validated_data)
         user.set_password(password)
         user.save()

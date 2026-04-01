@@ -157,6 +157,14 @@ class FuelRequest(models.Model):
     incomplete_reason = models.TextField(blank=True)
     has_pump_meter_photo = models.BooleanField(default=False)
     has_gps_capture = models.BooleanField(default=False)
+    gps_capture_text = models.TextField(
+        blank=True,
+        help_text="Lat/lng and timestamp from the station device (Simba Oil capture).",
+    )
+    pump_meter_photo_base64 = models.TextField(
+        blank=True,
+        help_text="Base64-encoded pump meter image (data URL prefix optional).",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -177,6 +177,8 @@ class FuelRequestSerializer(serializers.ModelSerializer):
             "incomplete_reason",
             "has_pump_meter_photo",
             "has_gps_capture",
+            "gps_capture_text",
+            "pump_meter_photo_base64",
             "created_at",
             "updated_at",
         )
@@ -200,6 +202,8 @@ class FuelRequestUpdateSerializer(serializers.ModelSerializer):
             "attendant_name",
             "has_pump_meter_photo",
             "has_gps_capture",
+            "gps_capture_text",
+            "pump_meter_photo_base64",
             "notes",
         )
 
