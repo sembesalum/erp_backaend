@@ -41,7 +41,10 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
+    """Create via API. Driver email may be omitted — set in validate() to a synthetic address."""
+
     password = serializers.CharField(write_only=True)
+    email = serializers.EmailField(required=False, allow_blank=True)
     assigned_station_id = serializers.PrimaryKeyRelatedField(
         queryset=FuelStation.objects.all(),
         source="assigned_station",
