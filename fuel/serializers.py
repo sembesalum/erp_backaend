@@ -51,7 +51,15 @@ class VehicleSerializer(serializers.ModelSerializer):
         read_only_fields = ("id", "registered_at", "updated_at")
 
     def validate_plate(self, value: str) -> str:
-        return value.strip().upper()
+        plate = value.strip().upper()
+        qs = Vehicle.objects.filter(plate=plate)
+        if self.instance is not None:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError(
+                "This plate is already registered on another vehicle.",
+            )
+        return plate
 
 
 class DriverSerializer(serializers.ModelSerializer):
