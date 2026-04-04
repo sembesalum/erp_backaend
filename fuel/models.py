@@ -164,15 +164,11 @@ class FuelRequest(models.Model):
     )
     pump_meter_photo_base64 = models.TextField(
         blank=True,
-        help_text="Base64-encoded pump meter image (data URL prefix optional).",
-    )
-    driver_photo_base64 = models.TextField(
-        blank=True,
-        help_text="Driver-submitted photo proof at MVFO creation (base64).",
+        help_text="Base64-encoded pump meter image (station/Simba capture; data URL prefix optional).",
     )
     efd_receipt_base64 = models.TextField(
         blank=True,
-        help_text="Electronic Fiscal Device receipt image from the driver (base64).",
+        help_text="EFD fiscal receipt image from the driver after COLLECTED (base64); not station evidence.",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

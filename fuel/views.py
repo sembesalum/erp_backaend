@@ -2,7 +2,7 @@ import django_filters
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import mixins, viewsets
 from rest_framework.authentication import TokenAuthentication
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.decorators import action, api_view
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -215,6 +215,44 @@ class FuelRequestViewSet(viewsets.ModelViewSet):
 
         raise PermissionDenied("You cannot update this MVFO.")
 
+    @action(detail=True, methods=["post"], url_path="submit-efd-receipt")
+    def submit_efd_receipt(self, request, pk=None):
+        """Driver submits EFD fiscal receipt after station sets mvfo_status to COLLECTED."""
+        fuel_request = self.get_object()
+        user = request.user
+        role = getattr(user, "role", None)
+        if role != User.Role.DRIVER:
+            raise PermissionDenied("Only drivers can submit EFD receipt proof.")
+        try:
+            profile = user.driver_profile
+        except Driver.DoesNotExist:
+            raise PermissionDenied("No driver profile for this account.")
+        if fuel_request.driver_id != profile.pk:
+            raise PermissionDenied("You can only submit proof for your own MVFOs.")
+        if fuel_request.mvfo_status != FuelRequest.MvfoStatus.COLLECTED:
+            raise ValidationError(
+                {
+                    "detail": (
+                        "EFD receipt can only be submitted when the order is COLLECTED "
+                        "(after the station has finished dispensing)."
+                    ),
+                },
+            )
+        raw = (request.data.get("efd_receipt_base64") or "").strip()
+        if not raw:
+            raise ValidationError({"efd_receipt_base64": "EFD receipt image is required."})
+        if (fuel_request.efd_receipt_base64 or "").strip():
+            raise ValidationError(
+                {"detail": "EFD receipt has already been submitted for this MVFO."},
+            )
+        fuel_request.efd_receipt_base64 = raw
+        fuel_request.mvfo_status = FuelRequest.MvfoStatus.COMPLETED
+        fuel_request.status = FuelRequest.LegacyStatus.COMPLETED
+        fuel_request.save(
+            update_fields=["efd_receipt_base64", "mvfo_status", "status", "updated_at"],
+        )
+        serializer = FuelRequestSerializer(fuel_request, context={"request": request})
+        return Response(serializer.data)
 
     @action(detail=True, methods=["get", "post"])
     def timeline(self, request, pk=None):

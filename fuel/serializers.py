@@ -140,11 +140,7 @@ class FuelRequestSerializer(serializers.ModelSerializer):
     station_name = serializers.CharField(source="station.name", read_only=True)
     vehicle = VehicleSerializer(read_only=True)
     vehicle_plate = serializers.SerializerMethodField()
-    has_driver_photo = serializers.SerializerMethodField()
     has_efd_receipt = serializers.SerializerMethodField()
-
-    def get_has_driver_photo(self, obj: FuelRequest) -> bool:
-        return bool((obj.driver_photo_base64 or "").strip())
 
     def get_has_efd_receipt(self, obj: FuelRequest) -> bool:
         return bool((obj.efd_receipt_base64 or "").strip())
@@ -198,9 +194,7 @@ class FuelRequestSerializer(serializers.ModelSerializer):
             "has_gps_capture",
             "gps_capture_text",
             "pump_meter_photo_base64",
-            "driver_photo_base64",
             "efd_receipt_base64",
-            "has_driver_photo",
             "has_efd_receipt",
             "created_at",
             "updated_at",
@@ -210,7 +204,6 @@ class FuelRequestSerializer(serializers.ModelSerializer):
             "reference",
             "created_at",
             "updated_at",
-            "has_driver_photo",
             "has_efd_receipt",
         )
 
@@ -227,23 +220,13 @@ class FuelRequestSerializer(serializers.ModelSerializer):
             attrs["litres_requested"] = Decimal("0")
             attrs["quantity_is_money"] = False
 
+        is_create = self.instance is None
+        if is_create:
+            attrs.pop("efd_receipt_base64", None)
+
         owner_role = attrs.get("owner_role")
         if owner_role is None and self.instance is not None:
             owner_role = self.instance.owner_role
-
-        is_create = self.instance is None
-        if is_create and owner_role == FuelRequest.Role.DRIVER:
-            dp = (attrs.get("driver_photo_base64") or "").strip()
-            efd = (attrs.get("efd_receipt_base64") or "").strip()
-            if not dp:
-                raise serializers.ValidationError(
-                    {"driver_photo_base64": "Driver photo proof is required."},
-                )
-            if not efd:
-                raise serializers.ValidationError(
-                    {"efd_receipt_base64": "EFD receipt evidence is required."},
-                )
-
         if is_create and not full_tank:
             qv = attrs.get("quantity_value")
             if qv is None:
