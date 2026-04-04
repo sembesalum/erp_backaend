@@ -48,7 +48,6 @@ class Vehicle(models.Model):
     class FuelType(models.TextChoices):
         DIESEL = "Diesel", "Diesel"
         PETROL = "Petrol", "Petrol"
-        KEROSENE = "Kerosene", "Kerosene"
 
     driver = models.ForeignKey(Driver, on_delete=models.CASCADE, related_name="vehicles")
     plate = models.CharField(max_length=32, unique=True, db_index=True)
@@ -71,7 +70,6 @@ class FuelPrice(models.Model):
     class FuelType(models.TextChoices):
         DIESEL = "Diesel", "Diesel"
         PETROL = "Petrol", "Petrol"
-        KEROSENE = "Kerosene", "Kerosene"
 
     station = models.ForeignKey(FuelStation, on_delete=models.CASCADE, related_name="fuel_prices")
     fuel_type = models.CharField(max_length=16, choices=FuelType.choices)
@@ -127,7 +125,6 @@ class FuelRequest(models.Model):
     class FuelType(models.TextChoices):
         DIESEL = "Diesel", "Diesel"
         PETROL = "Petrol", "Petrol"
-        KEROSENE = "Kerosene", "Kerosene"
 
     reference = models.CharField(max_length=32, unique=True, null=True, blank=True, editable=False)
     driver = models.ForeignKey(Driver, on_delete=models.PROTECT, related_name="fuel_requests")
@@ -140,6 +137,10 @@ class FuelRequest(models.Model):
         related_name="fuel_requests",
     )
     fuel_type = models.CharField(max_length=16, choices=FuelType.choices)
+    full_tank = models.BooleanField(
+        default=False,
+        help_text="Driver asked for a full tank; litres are set at approval/dispense.",
+    )
     quantity_is_money = models.BooleanField(default=False)
     quantity_value = models.DecimalField(max_digits=14, decimal_places=2)
     litres_requested = models.DecimalField(max_digits=12, decimal_places=2)
@@ -164,6 +165,14 @@ class FuelRequest(models.Model):
     pump_meter_photo_base64 = models.TextField(
         blank=True,
         help_text="Base64-encoded pump meter image (data URL prefix optional).",
+    )
+    driver_photo_base64 = models.TextField(
+        blank=True,
+        help_text="Driver-submitted photo proof at MVFO creation (base64).",
+    )
+    efd_receipt_base64 = models.TextField(
+        blank=True,
+        help_text="Electronic Fiscal Device receipt image from the driver (base64).",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

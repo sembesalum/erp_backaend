@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from rest_framework import serializers
 
 from users.models import User
@@ -138,6 +140,14 @@ class FuelRequestSerializer(serializers.ModelSerializer):
     station_name = serializers.CharField(source="station.name", read_only=True)
     vehicle = VehicleSerializer(read_only=True)
     vehicle_plate = serializers.SerializerMethodField()
+    has_driver_photo = serializers.SerializerMethodField()
+    has_efd_receipt = serializers.SerializerMethodField()
+
+    def get_has_driver_photo(self, obj: FuelRequest) -> bool:
+        return bool((obj.driver_photo_base64 or "").strip())
+
+    def get_has_efd_receipt(self, obj: FuelRequest) -> bool:
+        return bool((obj.efd_receipt_base64 or "").strip())
 
     def get_vehicle_plate(self, obj: FuelRequest) -> str:
         """Plate from MVFO vehicle FK, else first active vehicle on the driver (legacy rows)."""
@@ -168,6 +178,7 @@ class FuelRequestSerializer(serializers.ModelSerializer):
             "station_name",
             "vehicle_plate",
             "fuel_type",
+            "full_tank",
             "quantity_is_money",
             "quantity_value",
             "litres_requested",
@@ -187,10 +198,74 @@ class FuelRequestSerializer(serializers.ModelSerializer):
             "has_gps_capture",
             "gps_capture_text",
             "pump_meter_photo_base64",
+            "driver_photo_base64",
+            "efd_receipt_base64",
+            "has_driver_photo",
+            "has_efd_receipt",
             "created_at",
             "updated_at",
         )
-        read_only_fields = ("id", "reference", "created_at", "updated_at")
+        read_only_fields = (
+            "id",
+            "reference",
+            "created_at",
+            "updated_at",
+            "has_driver_photo",
+            "has_efd_receipt",
+        )
+
+    def validate(self, attrs):
+        full_tank = attrs.get("full_tank")
+        if self.instance is not None and full_tank is None:
+            full_tank = self.instance.full_tank
+        if full_tank is None:
+            full_tank = False
+
+        if full_tank:
+            attrs["full_tank"] = True
+            attrs["quantity_value"] = Decimal("0")
+            attrs["litres_requested"] = Decimal("0")
+            attrs["quantity_is_money"] = False
+
+        owner_role = attrs.get("owner_role")
+        if owner_role is None and self.instance is not None:
+            owner_role = self.instance.owner_role
+
+        is_create = self.instance is None
+        if is_create and owner_role == FuelRequest.Role.DRIVER:
+            dp = (attrs.get("driver_photo_base64") or "").strip()
+            efd = (attrs.get("efd_receipt_base64") or "").strip()
+            if not dp:
+                raise serializers.ValidationError(
+                    {"driver_photo_base64": "Driver photo proof is required."},
+                )
+            if not efd:
+                raise serializers.ValidationError(
+                    {"efd_receipt_base64": "EFD receipt evidence is required."},
+                )
+
+        if is_create and not full_tank:
+            qv = attrs.get("quantity_value")
+            if qv is None:
+                raise serializers.ValidationError(
+                    {"quantity_value": "Enter a quantity or choose full tank."},
+                )
+            try:
+                qv_dec = qv if isinstance(qv, Decimal) else Decimal(str(qv))
+            except Exception:
+                raise serializers.ValidationError(
+                    {"quantity_value": "Invalid quantity."},
+                ) from None
+            if qv_dec <= 0:
+                raise serializers.ValidationError(
+                    {
+                        "quantity_value": (
+                            "Quantity must be greater than zero unless full tank is selected."
+                        ),
+                    },
+                )
+
+        return attrs
 
 
 class FuelRequestUpdateSerializer(serializers.ModelSerializer):
