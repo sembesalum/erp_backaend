@@ -273,6 +273,25 @@ class FuelRequestUpdateSerializer(serializers.ModelSerializer):
             "notes",
         )
 
+    def validate(self, attrs):
+        new_mvfo = attrs.get("mvfo_status")
+        instance = self.instance
+        if (
+            instance is not None
+            and new_mvfo == FuelRequest.MvfoStatus.APPROVED
+            and instance.full_tank
+        ):
+            # For full-tank requests, approver may approve without setting litres.
+            return attrs
+
+        if new_mvfo == FuelRequest.MvfoStatus.APPROVED and "approved_litres" in attrs:
+            v = attrs.get("approved_litres")
+            if v is not None and v <= 0:
+                raise serializers.ValidationError(
+                    {"approved_litres": "Approved litres must be greater than zero."},
+                )
+        return attrs
+
 
 class FuelRequestDetailSerializer(FuelRequestSerializer):
     driver = DriverSerializer(read_only=True)
