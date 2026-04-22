@@ -170,6 +170,18 @@ class FuelRequest(models.Model):
         blank=True,
         help_text="EFD fiscal receipt image from the driver after COLLECTED (base64); not station evidence.",
     )
+    fuel_level_photo_base64 = models.TextField(
+        blank=True,
+        help_text="Driver-submitted fuel level photo when creating MVFO (dashboard fuel gauge).",
+    )
+    odometer_photo_base64 = models.TextField(
+        blank=True,
+        help_text="Driver-submitted odometer photo at approval completion stage.",
+    )
+    driver_pump_photo_base64 = models.TextField(
+        blank=True,
+        help_text="Optional driver-submitted pump photo at approval completion stage.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -180,7 +192,7 @@ class FuelRequest(models.Model):
         adding = self._state.adding
         super().save(*args, **kwargs)
         if adding and not self.reference:
-            self.reference = f"FR-{self.pk:05d}"
+            self.reference = f"SEL-{self.pk:04d}"
             super().save(update_fields=["reference"])
 
     def __str__(self) -> str:

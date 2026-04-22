@@ -215,9 +215,9 @@ class FuelRequestViewSet(viewsets.ModelViewSet):
 
         raise PermissionDenied("You cannot update this MVFO.")
 
-    @action(detail=True, methods=["post"], url_path="submit-efd-receipt")
-    def submit_efd_receipt(self, request, pk=None):
-        """Driver submits EFD fiscal receipt after station sets mvfo_status to COLLECTED."""
+    @action(detail=True, methods=["post"], url_path="submit-driver-proof")
+    def submit_driver_proof(self, request, pk=None):
+        """Driver submits completion proof after station sets mvfo_status to COLLECTED."""
         fuel_request = self.get_object()
         user = request.user
         role = getattr(user, "role", None)
@@ -238,18 +238,32 @@ class FuelRequestViewSet(viewsets.ModelViewSet):
                     ),
                 },
             )
-        raw = (request.data.get("efd_receipt_base64") or "").strip()
-        if not raw:
+        efd = (request.data.get("efd_receipt_base64") or "").strip()
+        odo = (request.data.get("odometer_photo_base64") or "").strip()
+        driver_pump = (request.data.get("driver_pump_photo_base64") or "").strip()
+        if not efd:
             raise ValidationError({"efd_receipt_base64": "EFD receipt image is required."})
-        if (fuel_request.efd_receipt_base64 or "").strip():
+        if not odo:
+            raise ValidationError({"odometer_photo_base64": "Odometer photo is required."})
+        if (fuel_request.efd_receipt_base64 or "").strip() and (fuel_request.odometer_photo_base64 or "").strip():
             raise ValidationError(
-                {"detail": "EFD receipt has already been submitted for this MVFO."},
+                {"detail": "Driver proof has already been submitted for this MVFO."},
             )
-        fuel_request.efd_receipt_base64 = raw
+        fuel_request.efd_receipt_base64 = efd
+        fuel_request.odometer_photo_base64 = odo
+        if driver_pump:
+            fuel_request.driver_pump_photo_base64 = driver_pump
         fuel_request.mvfo_status = FuelRequest.MvfoStatus.COMPLETED
         fuel_request.status = FuelRequest.LegacyStatus.COMPLETED
         fuel_request.save(
-            update_fields=["efd_receipt_base64", "mvfo_status", "status", "updated_at"],
+            update_fields=[
+                "efd_receipt_base64",
+                "odometer_photo_base64",
+                "driver_pump_photo_base64",
+                "mvfo_status",
+                "status",
+                "updated_at",
+            ],
         )
         serializer = FuelRequestSerializer(fuel_request, context={"request": request})
         return Response(serializer.data)

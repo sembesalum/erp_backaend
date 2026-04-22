@@ -141,9 +141,21 @@ class FuelRequestSerializer(serializers.ModelSerializer):
     vehicle = VehicleSerializer(read_only=True)
     vehicle_plate = serializers.SerializerMethodField()
     has_efd_receipt = serializers.SerializerMethodField()
+    has_fuel_level_photo = serializers.SerializerMethodField()
+    has_odometer_photo = serializers.SerializerMethodField()
+    has_driver_pump_photo = serializers.SerializerMethodField()
 
     def get_has_efd_receipt(self, obj: FuelRequest) -> bool:
         return bool((obj.efd_receipt_base64 or "").strip())
+    
+    def get_has_fuel_level_photo(self, obj: FuelRequest) -> bool:
+        return bool((obj.fuel_level_photo_base64 or "").strip())
+
+    def get_has_odometer_photo(self, obj: FuelRequest) -> bool:
+        return bool((obj.odometer_photo_base64 or "").strip())
+
+    def get_has_driver_pump_photo(self, obj: FuelRequest) -> bool:
+        return bool((obj.driver_pump_photo_base64 or "").strip())
 
     def get_vehicle_plate(self, obj: FuelRequest) -> str:
         """Plate from MVFO vehicle FK, else first active vehicle on the driver (legacy rows)."""
@@ -196,6 +208,12 @@ class FuelRequestSerializer(serializers.ModelSerializer):
             "pump_meter_photo_base64",
             "efd_receipt_base64",
             "has_efd_receipt",
+            "fuel_level_photo_base64",
+            "odometer_photo_base64",
+            "driver_pump_photo_base64",
+            "has_fuel_level_photo",
+            "has_odometer_photo",
+            "has_driver_pump_photo",
             "created_at",
             "updated_at",
         )
@@ -205,6 +223,9 @@ class FuelRequestSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "has_efd_receipt",
+            "has_fuel_level_photo",
+            "has_odometer_photo",
+            "has_driver_pump_photo",
         )
 
     def validate(self, attrs):
@@ -223,6 +244,10 @@ class FuelRequestSerializer(serializers.ModelSerializer):
         is_create = self.instance is None
         if is_create:
             attrs.pop("efd_receipt_base64", None)
+            if not (attrs.get("fuel_level_photo_base64") or "").strip():
+                raise serializers.ValidationError(
+                    {"fuel_level_photo_base64": "Fuel level dashboard photo is required."},
+                )
 
         owner_role = attrs.get("owner_role")
         if owner_role is None and self.instance is not None:
