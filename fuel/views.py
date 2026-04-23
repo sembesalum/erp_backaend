@@ -26,6 +26,7 @@ from .serializers import (
     DriverSerializer,
     FuelPriceSerializer,
     FuelRequestDetailSerializer,
+    FuelRequestListSerializer,
     FuelRequestSerializer,
     FuelRequestUpdateSerializer,
     FuelStationSerializer,
@@ -158,6 +159,8 @@ class FuelRequestViewSet(viewsets.ModelViewSet):
         return qs.none()
 
     def get_serializer_class(self):
+        if self.action == "list":
+            return FuelRequestListSerializer
         if self.action == "retrieve":
             return FuelRequestDetailSerializer
         if self.action in ("update", "partial_update"):

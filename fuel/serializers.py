@@ -276,6 +276,25 @@ class FuelRequestSerializer(serializers.ModelSerializer):
         return attrs
 
 
+class FuelRequestListSerializer(FuelRequestSerializer):
+    """Lean serializer for list views (excludes heavy base64/text evidence payloads)."""
+
+    class Meta(FuelRequestSerializer.Meta):
+        fields = tuple(
+            f
+            for f in FuelRequestSerializer.Meta.fields
+            if f
+            not in (
+                "gps_capture_text",
+                "pump_meter_photo_base64",
+                "efd_receipt_base64",
+                "fuel_level_photo_base64",
+                "odometer_photo_base64",
+                "driver_pump_photo_base64",
+            )
+        )
+
+
 class FuelRequestUpdateSerializer(serializers.ModelSerializer):
     """Partial updates for approvers and station staff (not for creating rows)."""
 
