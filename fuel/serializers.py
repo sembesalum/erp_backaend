@@ -146,16 +146,16 @@ class FuelRequestSerializer(serializers.ModelSerializer):
     has_driver_pump_photo = serializers.SerializerMethodField()
 
     def get_has_efd_receipt(self, obj: FuelRequest) -> bool:
-        return bool((obj.efd_receipt_base64 or "").strip())
+        return bool((obj.efd_receipt_url or "").strip())
     
     def get_has_fuel_level_photo(self, obj: FuelRequest) -> bool:
-        return bool((obj.fuel_level_photo_base64 or "").strip())
+        return bool((obj.fuel_level_photo_url or "").strip())
 
     def get_has_odometer_photo(self, obj: FuelRequest) -> bool:
-        return bool((obj.odometer_photo_base64 or "").strip())
+        return bool((obj.odometer_photo_url or "").strip())
 
     def get_has_driver_pump_photo(self, obj: FuelRequest) -> bool:
-        return bool((obj.driver_pump_photo_base64 or "").strip())
+        return bool((obj.driver_pump_photo_url or "").strip())
 
     def get_vehicle_plate(self, obj: FuelRequest) -> str:
         """Plate from MVFO vehicle FK, else first active vehicle on the driver (legacy rows)."""
@@ -205,12 +205,12 @@ class FuelRequestSerializer(serializers.ModelSerializer):
             "has_pump_meter_photo",
             "has_gps_capture",
             "gps_capture_text",
-            "pump_meter_photo_base64",
-            "efd_receipt_base64",
+            "pump_meter_photo_url",
+            "efd_receipt_url",
             "has_efd_receipt",
-            "fuel_level_photo_base64",
-            "odometer_photo_base64",
-            "driver_pump_photo_base64",
+            "fuel_level_photo_url",
+            "odometer_photo_url",
+            "driver_pump_photo_url",
             "has_fuel_level_photo",
             "has_odometer_photo",
             "has_driver_pump_photo",
@@ -243,11 +243,7 @@ class FuelRequestSerializer(serializers.ModelSerializer):
 
         is_create = self.instance is None
         if is_create:
-            attrs.pop("efd_receipt_base64", None)
-            if not (attrs.get("fuel_level_photo_base64") or "").strip():
-                raise serializers.ValidationError(
-                    {"fuel_level_photo_base64": "Fuel level dashboard photo is required."},
-                )
+            attrs.pop("efd_receipt_url", None)
 
         owner_role = attrs.get("owner_role")
         if owner_role is None and self.instance is not None:
@@ -277,7 +273,7 @@ class FuelRequestSerializer(serializers.ModelSerializer):
 
 
 class FuelRequestListSerializer(FuelRequestSerializer):
-    """Lean serializer for list views (excludes heavy base64/text evidence payloads)."""
+    """Lean serializer for list views (excludes large text evidence payloads)."""
 
     class Meta(FuelRequestSerializer.Meta):
         fields = tuple(
@@ -286,11 +282,11 @@ class FuelRequestListSerializer(FuelRequestSerializer):
             if f
             not in (
                 "gps_capture_text",
-                "pump_meter_photo_base64",
-                "efd_receipt_base64",
-                "fuel_level_photo_base64",
-                "odometer_photo_base64",
-                "driver_pump_photo_base64",
+                "pump_meter_photo_url",
+                "efd_receipt_url",
+                "fuel_level_photo_url",
+                "odometer_photo_url",
+                "driver_pump_photo_url",
             )
         )
 
@@ -313,7 +309,7 @@ class FuelRequestUpdateSerializer(serializers.ModelSerializer):
             "has_pump_meter_photo",
             "has_gps_capture",
             "gps_capture_text",
-            "pump_meter_photo_base64",
+            "pump_meter_photo_url",
             "notes",
         )
 

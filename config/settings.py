@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -98,3 +99,10 @@ REST_FRAMEWORK = {
 }
 
 CORS_ALLOW_ALL_ORIGINS = True
+
+# AWS S3 uploads (store image files in bucket, keep only URL/key in DB)
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
+AWS_DEFAULT_REGION = os.getenv("AWS_DEFAULT_REGION", "eu-north-1")
+AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_BUCKET", "")
+AWS_UPLOAD_FOLDER = os.getenv("AWS_FOLDER", "synarete")

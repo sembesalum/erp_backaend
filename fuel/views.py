@@ -2,6 +2,7 @@ import django_filters
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import mixins, viewsets
 from rest_framework.authentication import TokenAuthentication
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.decorators import action, api_view
@@ -11,6 +12,7 @@ from rest_framework.response import Response
 from users.models import User
 
 from .permissions import IsAdminRole
+from .s3_uploads import upload_request_image
 from .models import (
     AuditLog,
     Driver,
@@ -131,6 +133,7 @@ class FuelRequestViewSet(viewsets.ModelViewSet):
     search_fields = ["reference", "notes", "driver__user__full_name"]
     ordering_fields = ["request_datetime", "created_at", "updated_at"]
     ordering = ["-request_datetime"]
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
 
     def get_permissions(self):
         if self.action in ("list", "retrieve"):
@@ -218,6 +221,52 @@ class FuelRequestViewSet(viewsets.ModelViewSet):
 
         raise PermissionDenied("You cannot update this MVFO.")
 
+    @action(detail=True, methods=["post"], url_path="upload-evidence")
+    def upload_evidence(self, request, pk=None):
+        """Upload one image to S3 and store only the returned URL."""
+        fuel_request = self.get_object()
+        user = request.user
+        kind = (request.data.get("kind") or "").strip()
+        file_obj = request.FILES.get("image")
+        if not file_obj:
+            raise ValidationError({"image": "Image file is required."})
+        field_map = {
+            "pump_meter_photo": "pump_meter_photo_url",
+            "fuel_level_photo": "fuel_level_photo_url",
+            "efd_receipt": "efd_receipt_url",
+            "odometer_photo": "odometer_photo_url",
+            "driver_pump_photo": "driver_pump_photo_url",
+        }
+        target_field = field_map.get(kind)
+        if not target_field:
+            raise ValidationError({"kind": f"Invalid kind. Allowed: {', '.join(field_map.keys())}"})
+        role = getattr(user, "role", None)
+        if kind == "pump_meter_photo" and role not in (User.Role.ADMIN, User.Role.SIMBA_OIL):
+            raise PermissionDenied("Only station staff/admin can upload pump meter photo.")
+        if kind != "pump_meter_photo" and role not in (User.Role.ADMIN, User.Role.DRIVER):
+            raise PermissionDenied("Only driver/admin can upload this proof image.")
+
+        object_key, image_url = upload_request_image(
+            file_obj,
+            reference=fuel_request.reference or f"request-{fuel_request.pk}",
+            image_kind=kind,
+        )
+        setattr(fuel_request, target_field, image_url)
+        update_fields = [target_field, "updated_at"]
+        if target_field == "pump_meter_photo_url":
+            fuel_request.has_pump_meter_photo = True
+            update_fields.append("has_pump_meter_photo")
+        fuel_request.save(update_fields=update_fields)
+        return Response(
+            {
+                "reference": fuel_request.reference,
+                "kind": kind,
+                "s3_key": object_key,
+                "url": image_url,
+            },
+            status=201,
+        )
+
     @action(detail=True, methods=["post"], url_path="submit-driver-proof")
     def submit_driver_proof(self, request, pk=None):
         """Driver submits completion proof after station sets mvfo_status to COLLECTED."""
@@ -241,28 +290,51 @@ class FuelRequestViewSet(viewsets.ModelViewSet):
                     ),
                 },
             )
-        efd = (request.data.get("efd_receipt_base64") or "").strip()
-        odo = (request.data.get("odometer_photo_base64") or "").strip()
-        driver_pump = (request.data.get("driver_pump_photo_base64") or "").strip()
+        efd = (request.data.get("efd_receipt_url") or "").strip()
+        odo = (request.data.get("odometer_photo_url") or "").strip()
+        driver_pump = (request.data.get("driver_pump_photo_url") or "").strip()
+        efd_file = request.FILES.get("efd_receipt_image")
+        odo_file = request.FILES.get("odometer_photo_image")
+        driver_pump_file = request.FILES.get("driver_pump_photo_image")
+
+        if efd_file:
+            _, efd = upload_request_image(
+                efd_file,
+                reference=fuel_request.reference or f"request-{fuel_request.pk}",
+                image_kind="efd_receipt",
+            )
+        if odo_file:
+            _, odo = upload_request_image(
+                odo_file,
+                reference=fuel_request.reference or f"request-{fuel_request.pk}",
+                image_kind="odometer_photo",
+            )
+        if driver_pump_file:
+            _, driver_pump = upload_request_image(
+                driver_pump_file,
+                reference=fuel_request.reference or f"request-{fuel_request.pk}",
+                image_kind="driver_pump_photo",
+            )
+
         if not efd:
-            raise ValidationError({"efd_receipt_base64": "EFD receipt image is required."})
+            raise ValidationError({"efd_receipt_url": "EFD receipt URL or image file is required."})
         if not odo:
-            raise ValidationError({"odometer_photo_base64": "Odometer photo is required."})
-        if (fuel_request.efd_receipt_base64 or "").strip() and (fuel_request.odometer_photo_base64 or "").strip():
+            raise ValidationError({"odometer_photo_url": "Odometer URL or image file is required."})
+        if (fuel_request.efd_receipt_url or "").strip() and (fuel_request.odometer_photo_url or "").strip():
             raise ValidationError(
                 {"detail": "Driver proof has already been submitted for this MVFO."},
             )
-        fuel_request.efd_receipt_base64 = efd
-        fuel_request.odometer_photo_base64 = odo
+        fuel_request.efd_receipt_url = efd
+        fuel_request.odometer_photo_url = odo
         if driver_pump:
-            fuel_request.driver_pump_photo_base64 = driver_pump
+            fuel_request.driver_pump_photo_url = driver_pump
         fuel_request.mvfo_status = FuelRequest.MvfoStatus.COMPLETED
         fuel_request.status = FuelRequest.LegacyStatus.COMPLETED
         fuel_request.save(
             update_fields=[
-                "efd_receipt_base64",
-                "odometer_photo_base64",
-                "driver_pump_photo_base64",
+                "efd_receipt_url",
+                "odometer_photo_url",
+                "driver_pump_photo_url",
                 "mvfo_status",
                 "status",
                 "updated_at",

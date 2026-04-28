@@ -162,25 +162,25 @@ class FuelRequest(models.Model):
         blank=True,
         help_text="Lat/lng and timestamp from the station device (Simba Oil capture).",
     )
-    pump_meter_photo_base64 = models.TextField(
+    pump_meter_photo_url = models.URLField(
         blank=True,
-        help_text="Base64-encoded pump meter image (station/Simba capture; data URL prefix optional).",
+        help_text="S3 URL for station/Simba pump meter image.",
     )
-    efd_receipt_base64 = models.TextField(
+    efd_receipt_url = models.URLField(
         blank=True,
-        help_text="EFD fiscal receipt image from the driver after COLLECTED (base64); not station evidence.",
+        help_text="S3 URL for EFD fiscal receipt image from the driver after COLLECTED.",
     )
-    fuel_level_photo_base64 = models.TextField(
+    fuel_level_photo_url = models.URLField(
         blank=True,
-        help_text="Driver-submitted fuel level photo when creating MVFO (dashboard fuel gauge).",
+        help_text="S3 URL for driver-submitted fuel level photo at MVFO creation.",
     )
-    odometer_photo_base64 = models.TextField(
+    odometer_photo_url = models.URLField(
         blank=True,
-        help_text="Driver-submitted odometer photo at approval completion stage.",
+        help_text="S3 URL for driver-submitted odometer photo at completion stage.",
     )
-    driver_pump_photo_base64 = models.TextField(
+    driver_pump_photo_url = models.URLField(
         blank=True,
-        help_text="Optional driver-submitted pump photo at approval completion stage.",
+        help_text="S3 URL for optional driver-submitted pump photo at completion stage.",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
