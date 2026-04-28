@@ -11,6 +11,7 @@ router.register(r"fuel-prices", views.FuelPriceViewSet, basename="fuelprice")
 router.register(r"fuel-requests", views.FuelRequestViewSet, basename="fuelrequest")
 router.register(r"audit-logs", views.AuditLogViewSet, basename="auditlog")
 router.register(r"operation-activities", views.OperationActivityViewSet, basename="operationactivity")
+router.register(r"system-settings", views.SystemSettingsViewSet, basename="systemsettings")
 
 urlpatterns = [
     path("health/", views.health),

@@ -13,6 +13,7 @@ from .models import (
     FuelStation,
     OperationActivity,
     RequestTimelineEvent,
+    SystemSettings,
     Vehicle,
 )
 
@@ -369,3 +370,18 @@ class OperationActivitySerializer(serializers.ModelSerializer):
             "details",
         )
         read_only_fields = ("id",)
+
+
+class SystemSettingsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SystemSettings
+        fields = (
+            "id",
+            "max_litres_per_vehicle",
+            "max_litres_per_station_day",
+            "notifications_enabled",
+            "notification_channel",
+            "theme_mode",
+            "updated_at",
+        )
+        read_only_fields = ("id", "updated_at")

@@ -21,6 +21,7 @@ from .models import (
     FuelStation,
     OperationActivity,
     RequestTimelineEvent,
+    SystemSettings,
     Vehicle,
 )
 from .serializers import (
@@ -34,6 +35,7 @@ from .serializers import (
     FuelStationSerializer,
     OperationActivitySerializer,
     RequestTimelineEventSerializer,
+    SystemSettingsSerializer,
     VehicleSerializer,
 )
 
@@ -366,3 +368,14 @@ class OperationActivityViewSet(mixins.ListModelMixin, mixins.CreateModelMixin, v
     queryset = OperationActivity.objects.all()
     serializer_class = OperationActivitySerializer
     filterset_fields = ["category", "role"]
+
+
+class SystemSettingsViewSet(viewsets.ModelViewSet):
+    queryset = SystemSettings.objects.all()
+    serializer_class = SystemSettingsSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def get_queryset(self):
+        settings_obj, _ = SystemSettings.objects.get_or_create(pk=1)
+        return SystemSettings.objects.filter(pk=settings_obj.pk)

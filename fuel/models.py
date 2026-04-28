@@ -241,3 +241,23 @@ class OperationActivity(models.Model):
     class Meta:
         ordering = ["-timestamp"]
         verbose_name_plural = "Operation activities"
+
+
+class SystemSettings(models.Model):
+    class ThemeMode(models.TextChoices):
+        LIGHT = "light", "Light"
+        DARK = "dark", "Dark"
+        SYSTEM = "system", "System"
+
+    max_litres_per_vehicle = models.PositiveIntegerField(default=120)
+    max_litres_per_station_day = models.PositiveIntegerField(default=1000)
+    notifications_enabled = models.BooleanField(default=True)
+    notification_channel = models.CharField(max_length=64, blank=True, default="email")
+    theme_mode = models.CharField(max_length=16, choices=ThemeMode.choices, default=ThemeMode.SYSTEM)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name_plural = "System settings"
+
+    def __str__(self) -> str:
+        return "System settings"
