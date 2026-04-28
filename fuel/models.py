@@ -258,6 +258,7 @@ class SystemSettings(models.Model):
 
     class Meta:
         verbose_name_plural = "System settings"
+        ordering = ["id"]
 
     def __str__(self) -> str:
         return "System settings"

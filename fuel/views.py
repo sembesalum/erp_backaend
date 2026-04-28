@@ -290,14 +290,28 @@ class FuelRequestViewSet(viewsets.ModelViewSet):
                         "EFD receipt can only be submitted when the order is COLLECTED "
                         "(after the station has finished dispensing)."
                     ),
+                    "current_mvfo_status": fuel_request.mvfo_status,
                 },
             )
+
+        def _pick_file(*names):
+            for name in names:
+                f = request.FILES.get(name)
+                if f is not None:
+                    return f
+            return None
+
         efd = (request.data.get("efd_receipt_url") or "").strip()
         odo = (request.data.get("odometer_photo_url") or "").strip()
         driver_pump = (request.data.get("driver_pump_photo_url") or "").strip()
-        efd_file = request.FILES.get("efd_receipt_image")
-        odo_file = request.FILES.get("odometer_photo_image")
-        driver_pump_file = request.FILES.get("driver_pump_photo_image")
+        efd_file = _pick_file("efd_receipt_image", "efd_receipt", "efd_receipt_file", "efd_image")
+        odo_file = _pick_file("odometer_photo_image", "odometer_photo", "odometer_file", "odometer_image")
+        driver_pump_file = _pick_file(
+            "driver_pump_photo_image",
+            "driver_pump_photo",
+            "driver_pump_file",
+            "pump_photo",
+        )
 
         if efd_file:
             _, efd = upload_request_image(
@@ -319,9 +333,19 @@ class FuelRequestViewSet(viewsets.ModelViewSet):
             )
 
         if not efd:
-            raise ValidationError({"efd_receipt_url": "EFD receipt URL or image file is required."})
+            raise ValidationError(
+                {
+                    "efd_receipt_url": "EFD receipt URL or image file is required.",
+                    "files_received": list(request.FILES.keys()),
+                },
+            )
         if not odo:
-            raise ValidationError({"odometer_photo_url": "Odometer URL or image file is required."})
+            raise ValidationError(
+                {
+                    "odometer_photo_url": "Odometer URL or image file is required.",
+                    "files_received": list(request.FILES.keys()),
+                },
+            )
         if (fuel_request.efd_receipt_url or "").strip() and (fuel_request.odometer_photo_url or "").strip():
             raise ValidationError(
                 {"detail": "Driver proof has already been submitted for this MVFO."},
@@ -378,4 +402,4 @@ class SystemSettingsViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         settings_obj, _ = SystemSettings.objects.get_or_create(pk=1)
-        return SystemSettings.objects.filter(pk=settings_obj.pk)
+        return SystemSettings.objects.filter(pk=settings_obj.pk).order_by("pk")
