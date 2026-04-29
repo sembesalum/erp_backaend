@@ -1,3 +1,5 @@
+import logging
+
 import django_filters
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import mixins, viewsets
@@ -38,6 +40,8 @@ from .serializers import (
     SystemSettingsSerializer,
     VehicleSerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @api_view(["GET"])
@@ -275,15 +279,46 @@ class FuelRequestViewSet(viewsets.ModelViewSet):
         fuel_request = self.get_object()
         user = request.user
         role = getattr(user, "role", None)
+        logger.info(
+            "submit_driver_proof attempt request_id=%s user_id=%s role=%s mvfo_status=%s files=%s",
+            fuel_request.pk,
+            getattr(user, "id", None),
+            role,
+            fuel_request.mvfo_status,
+            list(request.FILES.keys()),
+        )
         if role != User.Role.DRIVER:
+            logger.warning(
+                "submit_driver_proof denied non-driver request_id=%s user_id=%s role=%s",
+                fuel_request.pk,
+                getattr(user, "id", None),
+                role,
+            )
             raise PermissionDenied("Only drivers can submit EFD receipt proof.")
         try:
             profile = user.driver_profile
         except Driver.DoesNotExist:
+            logger.warning(
+                "submit_driver_proof denied no_driver_profile request_id=%s user_id=%s",
+                fuel_request.pk,
+                getattr(user, "id", None),
+            )
             raise PermissionDenied("No driver profile for this account.")
         if fuel_request.driver_id != profile.pk:
+            logger.warning(
+                "submit_driver_proof denied wrong_driver request_id=%s user_id=%s expected_driver_id=%s",
+                fuel_request.pk,
+                getattr(user, "id", None),
+                fuel_request.driver_id,
+            )
             raise PermissionDenied("You can only submit proof for your own MVFOs.")
         if fuel_request.mvfo_status != FuelRequest.MvfoStatus.COLLECTED:
+            logger.warning(
+                "submit_driver_proof denied wrong_status request_id=%s user_id=%s current_status=%s",
+                fuel_request.pk,
+                getattr(user, "id", None),
+                fuel_request.mvfo_status,
+            )
             raise ValidationError(
                 {
                     "detail": (
@@ -314,18 +349,21 @@ class FuelRequestViewSet(viewsets.ModelViewSet):
         )
 
         if efd_file:
+            logger.info("submit_driver_proof uploading efd request_id=%s", fuel_request.pk)
             _, efd = upload_request_image(
                 efd_file,
                 reference=fuel_request.reference or f"request-{fuel_request.pk}",
                 image_kind="efd_receipt",
             )
         if odo_file:
+            logger.info("submit_driver_proof uploading odometer request_id=%s", fuel_request.pk)
             _, odo = upload_request_image(
                 odo_file,
                 reference=fuel_request.reference or f"request-{fuel_request.pk}",
                 image_kind="odometer_photo",
             )
         if driver_pump_file:
+            logger.info("submit_driver_proof uploading driver_pump request_id=%s", fuel_request.pk)
             _, driver_pump = upload_request_image(
                 driver_pump_file,
                 reference=fuel_request.reference or f"request-{fuel_request.pk}",
@@ -365,6 +403,12 @@ class FuelRequestViewSet(viewsets.ModelViewSet):
                 "status",
                 "updated_at",
             ],
+        )
+        logger.info(
+            "submit_driver_proof success request_id=%s user_id=%s completed=true has_driver_pump=%s",
+            fuel_request.pk,
+            getattr(user, "id", None),
+            bool(driver_pump),
         )
         serializer = FuelRequestSerializer(fuel_request, context={"request": request})
         return Response(serializer.data)
