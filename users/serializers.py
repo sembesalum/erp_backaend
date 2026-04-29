@@ -70,27 +70,30 @@ class UserCreateSerializer(serializers.ModelSerializer):
     def validate(self, attrs: dict) -> dict:
         role = attrs.get("role")
         pwd = attrs.get("password") or ""
+        phone = (attrs.get("phone") or "").strip()
+        attrs["phone"] = phone
         region = (attrs.get("region") or "").strip()
         if "region" in attrs:
             attrs["region"] = region
         station = attrs.get("assigned_station")
 
+        if len(phone) < 6:
+            raise serializers.ValidationError({"phone": "Phone is required and must be valid."})
+        if User.objects.filter(phone=phone).exists():
+            raise serializers.ValidationError({"phone": "This phone number is already in use."})
+
+        email = (attrs.get("email") or "").strip().lower()
+        if not email:
+            email = f"user_{uuid.uuid4().hex[:20]}@users.internal"
+        attrs["email"] = email
+        attrs["username"] = attrs["email"]
+
         if role == User.Role.DRIVER:
-            email = (attrs.get("email") or "").strip()
-            if not email:
-                attrs["email"] = f"driver_{uuid.uuid4().hex[:20]}@drivers.internal"
-            else:
-                attrs["email"] = email.lower()
-            attrs["username"] = attrs["email"]
             if len(pwd) < 4:
                 raise serializers.ValidationError(
                     {"password": "Use at least 4 characters for driver accounts."}
                 )
         else:
-            if not (attrs.get("email") or "").strip():
-                raise serializers.ValidationError({"email": "Email is required."})
-            attrs["email"] = (attrs["email"] or "").strip().lower()
-            attrs.setdefault("username", attrs["email"])
             if len(pwd) < 8:
                 raise serializers.ValidationError(
                     {"password": "Use at least 8 characters."}
@@ -124,6 +127,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     """Admin updates; optional password change."""
 
     password = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    email = serializers.EmailField(required=False, allow_blank=True, allow_null=True)
     assigned_station_id = serializers.PrimaryKeyRelatedField(
         queryset=FuelStation.objects.all(),
         source="assigned_station",
@@ -146,6 +150,18 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs: dict) -> dict:
         inst = self.instance
+        phone = attrs["phone"] if "phone" in attrs else inst.phone
+        phone = (phone or "").strip()
+        if not phone or len(phone) < 6:
+            raise serializers.ValidationError({"phone": "Phone is required and must be valid."})
+        if User.objects.filter(phone=phone).exclude(pk=inst.pk).exists():
+            raise serializers.ValidationError({"phone": "This phone number is already in use."})
+        attrs["phone"] = phone
+
+        if "email" in attrs:
+            email = (attrs.get("email") or "").strip().lower()
+            attrs["email"] = email if email else inst.email
+
         role = attrs.get("role", inst.role)
         region = attrs["region"] if "region" in attrs else inst.region
         region = (region or "").strip()
@@ -175,6 +191,8 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
     def update(self, instance: User, validated_data: dict) -> User:
         password = validated_data.pop("password", None)
+        next_email = validated_data.get("email", instance.email)
+        validated_data["username"] = next_email
         user = super().update(instance, validated_data)
         if password:
             user.set_password(password)

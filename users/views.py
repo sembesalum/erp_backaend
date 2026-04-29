@@ -53,11 +53,23 @@ def _auth_session_payload(user: User, *, include_token: Optional[str] = None) ->
 @authentication_classes([])
 @permission_classes([AllowAny])
 def login(request):
-    email = request.data.get("email")
+    phone = (request.data.get("phone") or "").strip()
+    email = (request.data.get("email") or "").strip().lower()
     password = request.data.get("password")
-    if not email or not password:
-        return Response({"detail": "email and password are required"}, status=400)
-    user = authenticate(request, username=email, password=password)
+    if (not phone and not email) or not password:
+        return Response({"detail": "phone and password are required"}, status=400)
+
+    user = None
+    if phone:
+        try:
+            login_user = User.objects.get(phone=phone)
+            user = authenticate(request, username=login_user.email, password=password)
+        except User.DoesNotExist:
+            user = None
+    elif email:
+        # Backward-compatible fallback while clients migrate to phone login.
+        user = authenticate(request, username=email, password=password)
+
     if user is None or not user.is_active:
         return Response({"detail": "Invalid credentials"}, status=401)
     user = User.objects.select_related("assigned_station").get(pk=user.pk)
