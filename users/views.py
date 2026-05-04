@@ -56,6 +56,11 @@ def login(request):
     phone = (request.data.get("phone") or "").strip()
     email = (request.data.get("email") or "").strip().lower()
     password = request.data.get("password")
+    # Accept either `phone` or `email` in the same field for compatibility
+    # with dashboard forms that may still label the identifier differently.
+    if phone and "@" in phone and not email:
+        email = phone.lower()
+        phone = ""
     if (not phone and not email) or not password:
         return Response({"detail": "phone and password are required"}, status=400)
 
