@@ -2,7 +2,7 @@ import logging
 
 import django_filters
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import mixins, viewsets
+from rest_framework import mixins, status, viewsets
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -102,6 +102,13 @@ class VehicleViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = VehicleFilter
     search_fields = ["plate", "make", "model"]
+
+    @action(detail=True, methods=["post"], url_path="delete")
+    def delete_vehicle(self, request, pk=None):
+        """Hard-delete via POST so dashboards work behind proxies that block HTTP DELETE."""
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class FuelPriceFilter(django_filters.FilterSet):

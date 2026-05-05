@@ -249,6 +249,14 @@ class FuelRequestSerializer(serializers.ModelSerializer):
         owner_role = attrs.get("owner_role")
         if owner_role is None and self.instance is not None:
             owner_role = self.instance.owner_role
+        # Mobile apps historically rely on backend defaults; align by filling in sane values on create.
+        if is_create and owner_role is None:
+            attrs["owner_role"] = FuelRequest.Role.DRIVER
+        if is_create and attrs.get("mvfo_status") is None:
+            attrs["mvfo_status"] = FuelRequest.MvfoStatus.CREATED
+        if is_create and attrs.get("status") is None:
+            attrs["status"] = FuelRequest.LegacyStatus.PENDING
+
         if is_create and not full_tank:
             qv = attrs.get("quantity_value")
             if qv is None:
