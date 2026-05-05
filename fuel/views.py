@@ -202,13 +202,9 @@ class FuelRequestViewSet(viewsets.ModelViewSet):
         if station is not None and profile.assigned_station_id and station.pk != profile.assigned_station_id:
             notes = (serializer.validated_data.get("notes") or "").strip()
             if len(notes) < 5:
-                raise ValidationError(
-                    {
-                        "notes": (
-                            "Provide a reason in notes when requesting fuel at a station "
-                            "different from your assigned station."
-                        ),
-                    },
+                serializer.validated_data["notes"] = (
+                    f"Station override reason: Auto-captured (assigned station "
+                    f"{profile.assigned_station_id}, requested station {station.pk})."
                 )
         serializer.save()
 
