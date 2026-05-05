@@ -232,11 +232,13 @@ class FuelRequestViewSet(viewsets.ModelViewSet):
         if role == User.Role.SIMBA_OIL:
             if not user.assigned_station_id or user.assigned_station_id != instance.station_id:
                 raise PermissionDenied("You are not assigned to this station.")
-            if instance.mvfo_status in (
-                FuelRequest.MvfoStatus.CREATED,
+            if instance.mvfo_status != FuelRequest.MvfoStatus.APPROVED:
+                raise PermissionDenied("Station staff can only act on APPROVED requests.")
+            if new_mvfo not in (
+                FuelRequest.MvfoStatus.ACCEPTED,
                 FuelRequest.MvfoStatus.REJECTED,
             ):
-                raise PermissionDenied("Station staff act after QSE approval.")
+                raise PermissionDenied("Station staff can only approve or reject requests.")
             serializer.save()
             return
 
