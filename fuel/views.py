@@ -191,6 +191,18 @@ class FuelRequestViewSet(viewsets.ModelViewSet):
         driver = serializer.validated_data.get("driver")
         if driver is None or driver.pk != profile.pk:
             raise PermissionDenied("You can only create requests for your own driver profile.")
+        station = serializer.validated_data.get("station")
+        if station is not None and profile.assigned_station_id and station.pk != profile.assigned_station_id:
+            notes = (serializer.validated_data.get("notes") or "").strip()
+            if len(notes) < 5:
+                raise ValidationError(
+                    {
+                        "notes": (
+                            "Provide a reason in notes when requesting fuel at a station "
+                            "different from your assigned station."
+                        ),
+                    },
+                )
         serializer.save()
 
     def perform_update(self, serializer):

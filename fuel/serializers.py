@@ -317,6 +317,12 @@ class FuelRequestUpdateSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         new_mvfo = attrs.get("mvfo_status")
         instance = self.instance
+        if new_mvfo == FuelRequest.MvfoStatus.REJECTED:
+            reason = (attrs.get("rejection_reason") or "").strip()
+            if not reason:
+                raise serializers.ValidationError(
+                    {"rejection_reason": "Rejection reason is required when rejecting a request."},
+                )
         if (
             instance is not None
             and new_mvfo == FuelRequest.MvfoStatus.APPROVED
