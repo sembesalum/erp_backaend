@@ -85,6 +85,9 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTH_USER_MODEL = "users.User"
 
+# Mobile app release expected by the API (login /me). Bump to force clients below this string to update.
+CLIENT_APP_VERSION = os.environ.get("CLIENT_APP_VERSION", "1.0.0").strip() or "1.0.0"
+
 REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.AllowAny",

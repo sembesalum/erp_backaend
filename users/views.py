@@ -1,5 +1,6 @@
 from typing import Optional
 
+from django.conf import settings
 from django.contrib.auth import authenticate
 from rest_framework import mixins, status, viewsets
 from rest_framework.authentication import TokenAuthentication
@@ -44,6 +45,7 @@ def _auth_session_payload(user: User, *, include_token: Optional[str] = None) ->
         "assigned_station": assigned_station,
         "simba_all_stations": bool(user.simba_all_stations),
         "vehicles": vehicles,
+        "client_version": getattr(settings, "CLIENT_APP_VERSION", "1.0.0"),
     }
     if include_token is not None:
         payload["token"] = include_token
