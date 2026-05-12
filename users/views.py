@@ -42,6 +42,7 @@ def _auth_session_payload(user: User, *, include_token: Optional[str] = None) ->
         "driver_id": driver_id,
         "region": user.region or "",
         "assigned_station": assigned_station,
+        "simba_all_stations": bool(user.simba_all_stations),
         "vehicles": vehicles,
     }
     if include_token is not None:

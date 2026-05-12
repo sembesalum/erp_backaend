@@ -50,6 +50,10 @@ class User(AbstractUser):
         related_name="assigned_staff",
         help_text="Simba Oil / station-facing staff; approvers may optionally be scoped to a station.",
     )
+    simba_all_stations = models.BooleanField(
+        default=False,
+        help_text="If true for Simba Oil users, they can view and act on requests from all stations.",
+    )
 
     objects = UserManager()
 

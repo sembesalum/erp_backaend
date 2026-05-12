@@ -28,6 +28,7 @@ class UserSerializer(serializers.ModelSerializer):
             "region",
             "assigned_station",
             "assigned_station_id",
+            "simba_all_stations",
             "is_active",
             "date_joined",
         )
@@ -62,6 +63,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
             "phone",
             "region",
             "assigned_station_id",
+            "simba_all_stations",
             "password",
             "is_active",
         )
@@ -99,12 +101,14 @@ class UserCreateSerializer(serializers.ModelSerializer):
                     {"password": "Use at least 8 characters."}
                 )
 
+        simba_all_stations = bool(attrs.get("simba_all_stations", False))
         if role == User.Role.SIMBA_OIL:
-            if station is None:
+            if not simba_all_stations and station is None:
                 raise serializers.ValidationError(
                     {"assigned_station_id": "Assign a fuel station for Simba Oil (station admin) accounts."}
                 )
-            attrs.setdefault("region", station.region)
+            if station is not None:
+                attrs.setdefault("region", station.region)
 
         if role == User.Role.APPROVER:
             if not region:
@@ -144,6 +148,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             "phone",
             "region",
             "assigned_station_id",
+            "simba_all_stations",
             "is_active",
             "password",
         )
@@ -168,13 +173,18 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         if "region" in attrs:
             attrs["region"] = region
         station = attrs.get("assigned_station") if "assigned_station_id" in attrs else inst.assigned_station
+        simba_all_stations = (
+            bool(attrs["simba_all_stations"])
+            if "simba_all_stations" in attrs
+            else bool(inst.simba_all_stations)
+        )
 
         if role == User.Role.SIMBA_OIL:
-            if station is None:
+            if not simba_all_stations and station is None:
                 raise serializers.ValidationError(
                     {"assigned_station_id": "Assign a fuel station for Simba Oil accounts."}
                 )
-            if "region" not in attrs or not (attrs.get("region") or "").strip():
+            if station is not None and ("region" not in attrs or not (attrs.get("region") or "").strip()):
                 attrs["region"] = station.region
         if role == User.Role.APPROVER:
             reg = (attrs["region"] if "region" in attrs else inst.region) or ""

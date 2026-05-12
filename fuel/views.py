@@ -164,6 +164,8 @@ class FuelRequestViewSet(viewsets.ModelViewSet):
         if role in (User.Role.APPROVER, User.Role.QSE):
             return qs
         if role == User.Role.SIMBA_OIL:
+            if user.simba_all_stations:
+                return qs
             if user.assigned_station_id:
                 return qs.filter(station_id=user.assigned_station_id)
             return qs.none()
@@ -230,7 +232,9 @@ class FuelRequestViewSet(viewsets.ModelViewSet):
             return
 
         if role == User.Role.SIMBA_OIL:
-            if not user.assigned_station_id or user.assigned_station_id != instance.station_id:
+            if not user.simba_all_stations and (
+                not user.assigned_station_id or user.assigned_station_id != instance.station_id
+            ):
                 raise PermissionDenied("You are not assigned to this station.")
             if instance.mvfo_status != FuelRequest.MvfoStatus.APPROVED:
                 raise PermissionDenied("Station staff can only act on APPROVED requests.")
